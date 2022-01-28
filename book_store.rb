@@ -92,3 +92,12 @@ class LibraryManager
     end
 
 end
+
+#get books and magazines
+
+books = []
+magazines = []
+
+lib = LibraryManager.new(books,magazines)
+
+# lib.ui_displayAll
