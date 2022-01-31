@@ -84,6 +84,7 @@ class LibraryManager
 
     def addBook(book)
         # your code here
+        self.setBooks(@books.push(book))
     end
 
     def addMagazine(magazine)
