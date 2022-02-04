@@ -56,19 +56,25 @@ class LibraryManager
     end
 
     def readDataFromFiles
-        @books = self.getArrayOfLinesFromFile(@booksFilePath).filter{|line| !line.chomp.empty?}.map{|line| Book.parse(line)}
-        @magazines = self.getArrayOfLinesFromFile(@magazinesFilePath).map{|line| Magazine.parse(line.chomp)}
+        booksFileLinesArray = self.getArrayOfLinesFromFile(@booksFilePath).filter{|line| !line.chomp.empty?}
+        @books = booksFileLinesArray.map{|line| Book.parse(line.chomp)}
+        magazinesFileLinesArray = self.getArrayOfLinesFromFile(@magazinesFilePath).filter{|line| !line.chomp.empty?}
+        @magazines = magazinesFileLinesArray.map{|line| Magazine.parse(line.chomp)}
     end
 
+    def updateFile(fileName,content)
+        IO.write(fileName,content)
+    end
+
+
     def updateBooksFile
-        fileStream = IO.popen(@booksFilePath,"w")
-        @books.map{|book| fileStream.puts(book.to_s)}
-        fileStream.close
+        content = @books.map{|book| book.to_s}.join("\n")
+        self.updateFile(@booksFilePath,content)
     end
 
     def updateMagazinesFile
-        fileStream = IO.popen(@magazinesFilePath,"w")
-        @magazines.map{|magazine| fileStream.puts(magazine.to_s)}
+        content = @magazines.map{|magazine| magazine.to_s}.join("\n")
+        self.updateFile(@magazinesFilePath,content)
     end
     #############################################################################
 
@@ -77,17 +83,19 @@ class LibraryManager
         self.updateBooksFile
     end
 
-    def magazines=(inputMagazines)
+    def setMagazines(inputMagazines)
         @magazines = inputMagazines
         self.updateMagazinesFile
     end
 
     def addBook(book)
         # your code here
+        self.setBooks(@books.push(book))
     end
 
     def addMagazine(magazine)
         # your code here
+        self.setMagazines(@magazines.push(magazine))
     end
 
     def booksSortedByPriceDesc
@@ -131,6 +139,11 @@ class LibraryManager
         @mainWindow.pane("magazines").puts("-----------------------------")
         @mainWindow.pane("magazines").puts("----------magazines----------")
         @mainWindow.pane("magazines").puts("-----------------------------")
+        @mainWindow.pane("magazines").puts(" ")
+        @mainWindow.pane("magazines").subpane("magazines_list")
+        @magazines.each do |item|
+            @mainWindow.pane("magazines").subpane("magazines_list").puts(item)
+        end
 
         @mainWindow.wait_until_closed
     end
@@ -142,6 +155,12 @@ class LibraryManager
         end
     end
 
+    def ui_refreshMagazines
+        @mainWindow.pane("magazines").subpane("magazines_list").replace("")
+        @magazines.each do |item|
+            @mainWindow.pane("magazines").subpane("magazines_list").puts(item)
+        end
+    end
 
     def isValidString(str)
         !( (str.empty?) || (str.match?(/\\|,/)) )
@@ -181,16 +200,47 @@ class LibraryManager
 
             end
         }
+        # if()
+        #     addBookWindow.button("Save"){@books.push(Book.new(title,price,author,pages,isbn))}
+        # end
+        # self.ui_refreshBooks
         addBookWindow.wait_until_closed
     end
 
     def ui_addMagazine
         addMagazineWindow = Flammarion::Engraving.new
-        title = addMagazineWindow.input("Book title")
-        price = addMagazineWindow.input("Book price")
-        publisher = addMagazineWindow.input("Book publisher")
-        date = addMagazineWindow.input("Book date")
-        addMagazineWindow.button("Save")
+        addMagazineWindow.subpane("message").puts("")
+        titleInput = addMagazineWindow.input("Magazine title")
+        priceInput = addMagazineWindow.input("Magazine price")
+        publisherInput = addMagazineWindow.input("Magazine publisher")
+        dateInput = addMagazineWindow.input("Magazine date")
+        addMagazineWindow.button("Save"){
+            title = titleInput.to_s
+            price = priceInput.to_s
+            publisher = publisherInput.to_s
+            date = dateInput.to_s
+
+            if( title.empty? || price.empty? || publisher.empty? || date.empty? )
+                addMagazineWindow.subpane("message").replace("")
+                addMagazineWindow.subpane("message").puts("please fill all the fields")
+            else 
+                if( title.match?(/\\|,/) || price.match?(/\\|,/) || publisher.match?(/\\|,/) || date.match?(/\\|,/))
+
+                    addMagazineWindow.subpane("message").replace("")
+                    addMagazineWindow.subpane("message").puts("invalid input (comma and backslash are not allowed)")
+
+                else
+                    magazine = Magazine.new(title,price,publisher,date)
+                    self.addMagazine(magazine)
+                    self.ui_refreshMagazines
+                    addMagazineWindow.subpane("message").replace("")
+                    addMagazineWindow.subpane("message").puts("successfully saved")
+                end
+
+            end
+        }
+
+
         addMagazineWindow.wait_until_closed
     end
 
@@ -211,8 +261,8 @@ class LibraryManager
 end
 
 
-booksFilePath = "./Book.txt"
-magazinesFilePath = "./Magazine.txt"
+booksFilePath = "Book.txt"
+magazinesFilePath = "Magazine.txt"
 
 #get books and magazines
 books = []
