@@ -83,7 +83,11 @@ class LibraryManager
         self.updateBooksFile
     end
 
-    def setMagazines(inputMagazines)
+    def setMagazines(Magazines)
+        @Magazines = Magazines
+        self.updateBooksFile
+    end
+    def magazines=(inputMagazines)
         @magazines = inputMagazines
         self.updateMagazinesFile
     end
@@ -95,11 +99,12 @@ class LibraryManager
 
     def addMagazine(magazine)
         # your code here
-        self.setMagazines(@magazines.push(magazine))
+        self.setmagazines(@magazines.push(magazine))
     end
 
     def booksSortedByPriceDesc
-        return @books
+        #return  @books.sort! {|x, y| y <=> x}
+        return @books.sort_by { |book| -book[:price] }
     end
 
     def filterBooksByPriceRange(min,max)
@@ -194,7 +199,7 @@ class LibraryManager
                     book = Book.new(title,price,author,pages,isbn)
                     self.addBook(book)
                     self.ui_refreshBooks
-                    addBookWindow.subpane("message").replace("")
+                addBookWindow.subpane("message").replace("")
                     addBookWindow.subpane("message").puts("successfully saved")
                 end
 
