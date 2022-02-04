@@ -83,13 +83,9 @@ class LibraryManager
         self.updateBooksFile
     end
 
-    def setMagazines(Magazines)
-        @Magazines = Magazines
+    def setMagazines(magazines)
+        @magazines = magazines
         self.updateBooksFile
-    end
-    def magazines=(inputMagazines)
-        @magazines = inputMagazines
-        self.updateMagazinesFile
     end
 
     def addBook(book)
@@ -99,7 +95,7 @@ class LibraryManager
 
     def addMagazine(magazine)
         # your code here
-        self.setmagazines(@magazines.push(magazine))
+        self.setMagazines(@magazines.push(magazine))
     end
 
     def booksSortedByPriceDesc
