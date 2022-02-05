@@ -56,8 +56,16 @@ class LibraryManager
     end
 
     def readDataFromFiles
+        self.readBooksFromFiles
+        self.readMagazinesFromFiles
+    end
+
+    def readBooksFromFiles
         booksFileLinesArray = self.getArrayOfLinesFromFile(@booksFilePath).filter{|line| !line.chomp.empty?}
         @books = booksFileLinesArray.map{|line| Book.parse(line.chomp)}
+    end
+
+    def readMagazinesFromFiles
         magazinesFileLinesArray = self.getArrayOfLinesFromFile(@magazinesFilePath).filter{|line| !line.chomp.empty?}
         @magazines = magazinesFileLinesArray.map{|line| Magazine.parse(line.chomp)}
     end
@@ -100,25 +108,46 @@ class LibraryManager
 
     def booksSortedByPriceDesc
         #return  @books.sort! {|x, y| y <=> x}
-        return @books.sort_by { |book| -book[:price] }
+        return @books.sort_by { |book| -book.price.to_f }
     end
 
     def filterBooksByPriceRange(min,max)
-        return @books
+        self.readBooksFromFiles
+        minPrice = -1.0
+        maxPrice = Float::INFINITY
+        if(!min.nil?)
+            minPrice = min
+        end
+        if(!max.nil?)
+            maxPrice = max
+        end
+        return @books.filter{|book|
+            floatPrice = book.price.to_f 
+            floatPrice >= minPrice && floatPrice <= maxPrice
+        }
     end
 
-    def filterMagazinesByDate(date)
-        return @magazines
+    def filterMagazinesByDate(magazines,date)
+        if(date.empty?)
+            return magazines
+        end
+        return magazines.filter{|magazine| magazine.date == date}
     end
 
-    def filterMagazinesByPublisher(publisher)
-        return @magazines
+    def filterMagazinesByPublisher(magazines,publisher)
+        if(publisher.empty?)
+            return magazines
+        end
+        return magazines.filter{|magazine| magazine.agent == publisher}
     end
 
-    def deleteOneItemByTitle(title)
-        return @items
+    def deleteBooksByTitle(bookTitle)
+        self.setBooks(@books.filter{|book| book.title != bookTitle})
     end
 
+    def deleteMagazinesByTitle(magazineTitle)
+        self.setMagazines(@magazines.filter{|magazine| magazine.title != magazineTitle})
+    end
 
     def ui_displayAll
         @mainWindow = Flammarion::Engraving.new
@@ -126,6 +155,26 @@ class LibraryManager
 
         @mainWindow.subpane("books").button("Add Book"){self.ui_addBook}
         @mainWindow.subpane("books").button("Delete Book"){self.ui_deleteBook}
+        bookMinPriceInput = @mainWindow.subpane("books").input("min_price")
+        bookMaxPriceInput = @mainWindow.subpane("books").input("max_price")
+        @mainWindow.subpane("books").button("Filter"){
+            bookMinPrice = nil
+            bookMaxPrice = nil
+            bookMinPriceInputValue = bookMinPriceInput.to_s
+            if(!bookMinPriceInputValue.empty?)
+                bookMinPrice = bookMinPriceInputValue.to_f
+            end
+            bookMaxPriceInputValue = bookMaxPriceInput.to_s
+            if(!bookMaxPriceInputValue.empty?)
+                bookMaxPrice = bookMaxPriceInputValue.to_f
+            end
+            @books = self.filterBooksByPriceRange(bookMinPrice,bookMaxPrice)
+            self.ui_refreshBooks
+        }
+        @mainWindow.subpane("books").button("Sort By Price"){
+            @books = self.booksSortedByPriceDesc
+            self.ui_refreshBooks
+        }
         @mainWindow.subpane("books").puts("-----------------------------")
         @mainWindow.subpane("books").puts("------------books------------")
         @mainWindow.subpane("books").puts("-----------------------------")
@@ -137,6 +186,16 @@ class LibraryManager
 
         @mainWindow.pane("magazines").button("Add Magazine"){self.ui_addMagazine}
         @mainWindow.pane("magazines").button("Delete Magazine"){self.ui_deleteMagazine}
+        agentInput = @mainWindow.pane("magazines").input("publisher_agent")
+        dateInput = @mainWindow.pane("magazines").input("date")
+        @mainWindow.pane("magazines").button("Filter Magazines"){
+            self.readMagazinesFromFiles
+            agent = agentInput.to_s
+            date = dateInput.to_s
+            @magazines = self.filterMagazinesByDate(@magazines,date)
+            @magazines = self.filterMagazinesByPublisher(@magazines,agent)
+            self.ui_refreshMagazines
+        }
         @mainWindow.pane("magazines").puts("-----------------------------")
         @mainWindow.pane("magazines").puts("----------magazines----------")
         @mainWindow.pane("magazines").puts("-----------------------------")
@@ -195,16 +254,12 @@ class LibraryManager
                     book = Book.new(title,price,author,pages,isbn)
                     self.addBook(book)
                     self.ui_refreshBooks
-                addBookWindow.subpane("message").replace("")
+                    addBookWindow.subpane("message").replace("")
                     addBookWindow.subpane("message").puts("successfully saved")
                 end
 
             end
         }
-        # if()
-        #     addBookWindow.button("Save"){@books.push(Book.new(title,price,author,pages,isbn))}
-        # end
-        # self.ui_refreshBooks
         addBookWindow.wait_until_closed
     end
 
@@ -247,15 +302,52 @@ class LibraryManager
 
     def ui_deleteBook
         deleteItemWindow = Flammarion::Engraving.new
-        bookTitle = deleteItemWindow.input("Book Title")
-        deleteItemWindow.button("Delete")
+        deleteItemWindow.subpane("message").puts("")
+        bookTitleInput = deleteItemWindow.input("Book Title")
+        deleteItemWindow.button("Delete"){
+            bookTitle = bookTitleInput.to_s
+            foundBooksSize = @books.filter{|book| book.title == bookTitle}.size
+            if(bookTitle.empty?)
+                deleteItemWindow.subpane("message").replace("")
+                deleteItemWindow.subpane("message").puts("please enter book title")
+            else
+                if(foundBooksSize != 0)
+                    self.deleteBooksByTitle(bookTitle)
+                    self.ui_refreshBooks
+                    deleteItemWindow.subpane("message").replace("")
+                    deleteItemWindow.subpane("message").puts("successfully deleted")
+                else
+                    deleteItemWindow.subpane("message").replace("")
+                    deleteItemWindow.subpane("message").puts("error! no book found with this title")
+                end
+            end
+        }
         deleteItemWindow.wait_until_closed
     end
 
     def ui_deleteMagazine
         deleteItemWindow = Flammarion::Engraving.new
-        magazineTitle = deleteItemWindow.input("Magazine Title")
-        deleteItemWindow.button("Delete")
+        deleteItemWindow.subpane("message").puts("")
+        magazineTitleInput = deleteItemWindow.input("Magazine Title")
+        deleteItemWindow.button("Delete"){
+            magazineTitle = magazineTitleInput.to_s
+            foundMagazinesSize = @magazines.filter{|magazine| magazine.title == magazineTitle}.size
+            if(magazineTitle.empty?)
+                deleteItemWindow.subpane("message").replace("")
+                deleteItemWindow.subpane("message").puts("please enter magazine title")
+            else
+                if(foundMagazinesSize != 0)
+                    self.deleteMagazinesByTitle(magazineTitle)
+                    self.ui_refreshMagazines
+                    deleteItemWindow.subpane("message").replace("")
+                    deleteItemWindow.subpane("message").puts("successfully deleted")
+                else
+                    deleteItemWindow.subpane("message").replace("")
+                    deleteItemWindow.subpane("message").puts("error! no magazine found with this title")
+                end
+            end
+        }
+        
         deleteItemWindow.wait_until_closed
     end
 
